@@ -1,0 +1,30 @@
+{
+  "cmd": {
+    "work_dir": "",
+    "pattern": "python3 server.py {}",
+    "timeout": 30,
+    "instances": [
+      {
+        "args": [
+          9096
+        ],
+        "port": 9096
+      },
+      {
+        "args": [
+          9097
+        ],
+        "port": 9097
+      },
+      {
+        "args": [
+          9098
+        ],
+        "port": 9098
+      }
+    ]
+  },
+  "service": {
+    "singleton": false
+  }
+}
