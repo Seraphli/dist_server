@@ -79,8 +79,7 @@ def start_server(cmd, port, work_dir, expect_pattern, error_pattern,
         else:
             print('Timeout.')
         if not port_check('127.0.0.1', port):
-            p.close()
-            stop_server(port, debug)
+            stop_server(p, port, debug)
             retry += 1
             continue
         return True, p
