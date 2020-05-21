@@ -1,11 +1,11 @@
-# Python RPC template
+# Python Distribute Server
 
-RPC server and client using thrift.
+Start multiple process using command, and allocate port using client.
 
 ### Server
 
-`python -m pyrpc.server`
+`python -m dist_server.server -c "config.example.json"`
 
 ### Client
 
-`python -m pyrpc.client`
+`python -m dist_server.client`

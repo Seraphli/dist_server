@@ -1,8 +1,8 @@
 {
   "cmd": {
-    "work_dir": "",
-    "pattern": "python3 server.py {}",
-    "timeout": 30,
+    "work_dir": null,
+    "pattern": "python -m http.server {}",
+    "timeout": 5,
     "instances": [
       {
         "args": [

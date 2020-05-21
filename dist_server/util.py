@@ -59,28 +59,35 @@ def start_server(cmd, port, work_dir, timeout, debug=False, max_try=5):
         _logfile = None
     retry = 0
     while retry < max_try:
-        p = pexpect.spawn('bash', cwd=work_dir, logfile=_logfile,
-                          encoding='utf-8')
-        p.expect(['#', '$'])
+        p = pexpect.spawn('bash', cwd=work_dir, encoding='utf-8')
+        p.logfile_read = _logfile
+        p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
+        p.read_nonblocking(size=int(1e10), timeout=1)
         p.sendline(cmd)
         time.sleep(timeout)
+        p.read_nonblocking(size=int(1e10), timeout=1)
         if not port_check('127.0.0.1', port):
             p.close()
             stop_server(port, debug)
             retry += 1
             continue
-        return True
-    return False
+        return True, p
+    return False, None
 
 
-def stop_server(port, debug=False):
+def stop_server(proc, port, debug=False):
     if debug:
         _logfile = sys.stdout
     else:
         _logfile = None
-    p = pexpect.spawn('bash', logfile=_logfile, encoding='utf-8')
-    p.expect(['#', '$'])
-    p.sendline(f'kill -9 $(lsof -t -i:{port})')
-    p.expect(['#', '$'])
-    time.sleep(0.2)
-    p.close()
+    proc.close()
+    time.sleep(0.5)
+    if port_check('127.0.0.1', port):
+        p = pexpect.spawn('bash', encoding='utf-8')
+        p.logfile_read = _logfile
+        p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
+        p.read_nonblocking(size=int(1e10), timeout=1)
+        p.sendline(f'kill -9 $(lsof -t -i:{port})')
+        p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
+        p.read_nonblocking(size=int(1e10), timeout=1)
+        p.close()

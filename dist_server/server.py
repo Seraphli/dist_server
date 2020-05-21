@@ -9,10 +9,10 @@ import dist_server.rpc.pyrpc.pyrpc as server
 import dist_server.rpc.constants as constants
 from dist_server import __version__
 
-import copy
+import os
 import time
 import json
-from tqdm import trange
+from tqdm import trange, tqdm
 from dist_server.util import start_server, stop_server
 
 
@@ -20,8 +20,11 @@ class Handler(object):
     def __init__(self, config, debug):
         self.config = json.load(open(config))
         self.debug = debug
+        if self.debug:
+            print('Debug log enabled.')
         self._lock = Lock()
         self.avail_ports = []
+        self.sessions = {}
         self.conns = {}
         self.cmd_cfg = self.config['cmd']
         self.instances = self.cmd_cfg['instances']
@@ -43,9 +46,10 @@ class Handler(object):
             instance = self.instances[i]
             port = instance['port']
             cmd = self.pattern.format(*instance['args'])
-            result = start_server(cmd, port, self.work_dir,
+            result, p = start_server(cmd, port, self.work_dir,
                                   self.timeout, self.debug)
             if result:
+                self.sessions[port] = p
                 self.avail_ports.append(port)
                 self.conns[port] = 0
             else:
@@ -54,8 +58,8 @@ class Handler(object):
 
     def stop_server(self):
         self._lock.acquire()
-        for port in self.avail_ports:
-            stop_server(port, self.debug)
+        for port in tqdm(self.avail_ports):
+            stop_server(self.sessions[port], port, self.debug)
         self._lock.release()
 
     def acquire_port(self):
@@ -93,6 +97,8 @@ class ServerThread(Thread):
 
     def run(self):
         self.handler = Handler(self.config, self.debug)
+        print('Starting servers...')
+        self.handler.start_server()
         processor = server.Processor(self.handler)
         transport = TSocket.TServerSocket(self.host, self.port)
         tfactory = TTransport.TBufferedTransportFactory()
@@ -117,15 +123,41 @@ class Server(object):
         self.server_thread = ServerThread(self.port, self.config, self.debug)
         self.server_thread.start()
         time.sleep(0.5)
-        while True:
-            cmd = input()
-            if cmd == 'exit' or cmd == 'e':
-                break
+        help_str = 'Available Commands:\n' \
+                   '\texit or e: Exit\n' \
+                   '\tquery or q: Query available ports\n' \
+                   '\tlist or l: List all connections\n' \
+                   '\treset or r: Reset used ports\n' \
+                   '\thelp or h: This message\n'
+        try:
+            while True:
+                cmd = input()
+                if cmd == 'exit' or cmd == 'e':
+                    break
+                elif cmd == 'query' or cmd == 'q':
+                    print(self.server_thread.handler.avail_ports)
+                elif cmd == 'list' or cmd == 'l':
+                    print(self.server_thread.handler.conns)
+                elif cmd == 'reset' or cmd == 'r':
+                    self.server_thread.handler.reset()
+                    print('Reset')
+                elif cmd == 'help' or cmd == 'h':
+                    print(help_str)
+                else:
+                    print('Unknown command, type help for command.')
+        except:
+            pass
+        finally:
+            print('Stopping servers...')
+            self.server_thread.handler.stop_server()
+            print('Stopped')
+            os._exit(0)
+
 
 
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description='Python RPC server')
+    parser = argparse.ArgumentParser(description='Python Distribute Server')
     parser.add_argument('-p', '--port', type=int, default=constants.PORT,
                         help='Host Port')
     parser.add_argument('-c', '--config', type=str, required=True,

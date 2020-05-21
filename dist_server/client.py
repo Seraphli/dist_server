@@ -47,4 +47,8 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    Client(args.ip, args.port)
+    c = Client(args.ip, args.port)
+    port = c.acquire_port()
+    print(f'Acquire port: {port}\nPress any key to continue')
+    input()
+    c.release_port(port)
