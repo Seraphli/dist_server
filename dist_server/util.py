@@ -60,8 +60,12 @@ def start_server(cmd, port, work_dir, expect_pattern, error_pattern,
         _logfile = None
     retry = 0
     while retry < max_try:
-        p = pexpect.spawn('bash', cwd=work_dir, encoding='utf-8')
+        p = pexpect.spawn('bash', encoding='utf-8')
         p.logfile_read = _logfile
+        p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
+        p.read_nonblocking(size=int(1e10), timeout=5)
+        # Make sure enter the working directory
+        p.sendline(f'cd {work_dir}')
         p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
         p.read_nonblocking(size=int(1e10), timeout=5)
         p.sendline(cmd)
