@@ -1,7 +1,7 @@
 {
   "cmd": {
     "work_dir": null,
-    "pattern": "python -m http.server {}",
+    "pattern": "python3 -m http.server {}",
     "timeout": 10,
     "expect_pattern": [
       "Serving"
