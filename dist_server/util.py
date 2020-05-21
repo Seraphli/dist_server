@@ -52,7 +52,8 @@ def port_check(address, port):
         s.close()
 
 
-def start_server(cmd, port, work_dir, timeout, debug=False, max_try=5):
+def start_server(cmd, port, work_dir, expect_pattern, error_pattern,
+                 timeout, debug=False, max_try=5):
     if debug:
         _logfile = sys.stdout
     else:
@@ -62,10 +63,17 @@ def start_server(cmd, port, work_dir, timeout, debug=False, max_try=5):
         p = pexpect.spawn('bash', cwd=work_dir, encoding='utf-8')
         p.logfile_read = _logfile
         p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
-        p.read_nonblocking(size=int(1e10), timeout=1)
+        p.read_nonblocking(size=int(1e10), timeout=5)
         p.sendline(cmd)
-        time.sleep(timeout)
-        p.read_nonblocking(size=int(1e10), timeout=1)
+        index = p.expect([*expect_pattern, *error_pattern, pexpect.TIMEOUT],
+                         timeout=timeout)
+        if index < len(expect_pattern):
+            pass
+        elif len(expect_pattern) <= index < \
+                len(expect_pattern) + len(error_pattern):
+            print('Error pattern found.')
+        else:
+            print('Timeout.')
         if not port_check('127.0.0.1', port):
             p.close()
             stop_server(port, debug)

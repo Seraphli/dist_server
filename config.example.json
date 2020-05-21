@@ -2,7 +2,11 @@
   "cmd": {
     "work_dir": null,
     "pattern": "python -m http.server {}",
-    "timeout": 5,
+    "timeout": 10,
+    "expect_pattern": [
+      "Serving"
+    ],
+    "error_pattern": [],
     "instances": [
       {
         "args": [

@@ -32,6 +32,8 @@ class Handler(object):
         self.work_dir = self.cmd_cfg['work_dir']
         self.pattern = self.cmd_cfg['pattern']
         self.timeout = self.cmd_cfg['timeout']
+        self.expect_pattern = self.cmd_cfg['expect_pattern']
+        self.error_pattern = self.cmd_cfg['error_pattern']
         self.srv_cfg = self.config['service']
 
     def ping(self):
@@ -46,8 +48,9 @@ class Handler(object):
             instance = self.instances[i]
             port = instance['port']
             cmd = self.pattern.format(*instance['args'])
-            result, p = start_server(cmd, port, self.work_dir,
-                                  self.timeout, self.debug)
+            result, p = start_server(
+                cmd, port, self.work_dir, self.expect_pattern,
+                self.error_pattern, self.timeout, self.debug)
             if result:
                 self.sessions[port] = p
                 self.avail_ports.append(port)
@@ -152,7 +155,6 @@ class Server(object):
             self.server_thread.handler.stop_server()
             print('Stopped')
             os._exit(0)
-
 
 
 def parse_args():
