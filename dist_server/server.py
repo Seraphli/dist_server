@@ -1,4 +1,4 @@
-from threading import Thread, Lock
+from threading import Thread, Lock, Timer
 
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TTransport
@@ -12,6 +12,7 @@ from dist_server import __version__
 import os
 import time
 import json
+import pexpect
 from tqdm import trange, tqdm
 from dist_server.util import start_server, stop_server
 
@@ -23,9 +24,7 @@ class Handler(object):
         if self.debug:
             print('Debug log enabled.')
         self._lock = Lock()
-        self.avail_ports = []
-        self.sessions = {}
-        self.conns = {}
+        self._reset()
         self.cmd_cfg = self.config['cmd']
         self.instances = self.cmd_cfg['instances']
         self.num = len(self.instances)
@@ -35,6 +34,11 @@ class Handler(object):
         self.expect_pattern = self.cmd_cfg['expect_pattern']
         self.error_pattern = self.cmd_cfg['error_pattern']
         self.srv_cfg = self.config['service']
+
+    def _reset(self):
+        self.avail_ports = []
+        self.sessions = {}
+        self.conns = {}
 
     def ping(self):
         return
@@ -58,12 +62,15 @@ class Handler(object):
             else:
                 print('Port {} fail to start.'.format(instance['port']))
         self._lock.release()
+        self.create_timer()
 
     def stop_server(self):
+        self.t.cancel()
         self._lock.acquire()
         for port in tqdm(self.avail_ports):
             stop_server(self.sessions[port], port, self.debug)
         self._lock.release()
+        self._reset()
 
     def acquire_port(self):
         if self.srv_cfg['singleton']:
@@ -86,6 +93,20 @@ class Handler(object):
         for k in self.conns:
             self.conns[k] = 0
         self._lock.release()
+
+    def create_timer(self):
+        self.t = Timer(0.1, self.check_output)
+        self.t.start()
+
+    def check_output(self):
+        try:
+            for p in self.sessions.values():
+                p.read_nonblocking(size=int(1e10), timeout=0.1)
+            self.create_timer()
+        except pexpect.exceptions.TIMEOUT:
+            pass
+        except OSError:
+            pass
 
 
 class ServerThread(Thread):
@@ -149,7 +170,8 @@ class Server(object):
                 else:
                     print('Unknown command, type help for command.')
         except:
-            pass
+            import traceback
+            traceback.print_exc()
         finally:
             print('Stopping servers...')
             self.server_thread.handler.stop_server()
