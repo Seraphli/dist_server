@@ -51,15 +51,15 @@ class Handler(object):
     def start_server(self):
         self._lock.acquire()
         futures = []
-        for i in trange(self.num):
+        for i in range(self.num):
             instance = self.instances[i]
             port = instance['port']
             cmd = self.pattern.format(*instance['args'])
             f = self.pool.submit(start_server, cmd, port, self.work_dir,
-                                      self.expect_pattern, self.error_pattern,
-                                      self.timeout, self.debug)
+                                 self.expect_pattern, self.error_pattern,
+                                 self.timeout, self.debug)
             futures.append(f)
-        for f in futures:
+        for f in tqdm(futures, dynamic_ncols=True):
             port, result, p = f.result()
             if result:
                 self.sessions[port] = p
