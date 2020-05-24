@@ -82,8 +82,8 @@ def start_server(cmd, port, work_dir, expect_pattern, error_pattern,
             stop_server(p, port, debug)
             retry += 1
             continue
-        return True, p
-    return False, None
+        return port, True, p
+    return port, False, None
 
 
 def stop_server(proc, port, debug=False):

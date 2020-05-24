@@ -1,4 +1,10 @@
+import os
+import time
+import json
+import pexpect
+from tqdm import trange, tqdm
 from threading import Thread, Lock, Timer
+from concurrent.futures import ThreadPoolExecutor
 
 from thrift.protocol import TBinaryProtocol
 from thrift.transport import TTransport
@@ -9,11 +15,6 @@ import dist_server.rpc.pyrpc.pyrpc as server
 import dist_server.rpc.constants as constants
 from dist_server import __version__
 
-import os
-import time
-import json
-import pexpect
-from tqdm import trange, tqdm
 from dist_server.util import start_server, stop_server
 
 
@@ -28,6 +29,7 @@ class Handler(object):
         self.cmd_cfg = self.config['cmd']
         self.instances = self.cmd_cfg['instances']
         self.num = len(self.instances)
+        self.pool = ThreadPoolExecutor(self.num)
         self.work_dir = self.cmd_cfg['work_dir']
         self.pattern = self.cmd_cfg['pattern']
         self.timeout = self.cmd_cfg['timeout']
@@ -48,19 +50,23 @@ class Handler(object):
 
     def start_server(self):
         self._lock.acquire()
+        futures = []
         for i in trange(self.num):
             instance = self.instances[i]
             port = instance['port']
             cmd = self.pattern.format(*instance['args'])
-            result, p = start_server(
-                cmd, port, self.work_dir, self.expect_pattern,
-                self.error_pattern, self.timeout, self.debug)
+            f = self.pool.submit(start_server, cmd, port, self.work_dir,
+                                      self.expect_pattern, self.error_pattern,
+                                      self.timeout, self.debug)
+            futures.append(f)
+        for f in futures:
+            port, result, p = f.result()
             if result:
                 self.sessions[port] = p
                 self.avail_ports.append(port)
                 self.conns[port] = 0
             else:
-                print('Port {} fail to start.'.format(instance['port']))
+                print('Port {} fail to start.'.format(port))
         self._lock.release()
         self.create_timer()
 
