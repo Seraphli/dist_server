@@ -99,14 +99,17 @@ class Handler(object):
         self.t.start()
 
     def check_output(self):
-        try:
-            for p in self.sessions.values():
+        flag = True
+        for p in self.sessions.values():
+            try:
                 p.read_nonblocking(size=int(1e10), timeout=0.1)
+            except pexpect.exceptions.TIMEOUT:
+                pass
+            except Exception:
+                flag = False
+                pass
+        if flag:
             self.create_timer()
-        except pexpect.exceptions.TIMEOUT:
-            pass
-        except OSError:
-            pass
 
 
 class ServerThread(Thread):
