@@ -1,5 +1,6 @@
 {
   "cmd": {
+    "template_mode": true,
     "work_dir": null,
     "pattern": "python3 -m http.server {}",
     "timeout": 10,
@@ -7,6 +8,13 @@
       "Serving"
     ],
     "error_pattern": [],
+    "instance_template": [
+      "PORT"
+    ],
+    "instance_init": {
+      "PORT": 9096
+    },
+    "instance_num": 5,
     "instances": [
       {
         "args": [

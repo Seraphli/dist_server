@@ -1,8 +1,9 @@
 import os
+import copy
 import time
 import json
 import pexpect
-from tqdm import trange, tqdm
+from tqdm import tqdm
 from threading import Thread, Lock, Timer
 from concurrent.futures import ThreadPoolExecutor
 
@@ -17,6 +18,8 @@ from dist_server import __version__
 
 from dist_server.util import start_server, stop_server
 
+NUM_THREAD = 200
+
 
 class Handler(object):
     def __init__(self, config, debug):
@@ -27,8 +30,14 @@ class Handler(object):
         self._lock = Lock()
         self._reset()
         self.cmd_cfg = self.config['cmd']
-        self.instances = self.cmd_cfg['instances']
-        self.num = len(self.instances)
+        self.template_mode = self.cmd_cfg['template_mode']
+        if self.template_mode:
+            self.instance_template = self.cmd_cfg['instance_template']
+            self.instance_init = self.cmd_cfg['instance_init']
+            self.num = self.cmd_cfg['instance_num']
+        else:
+            self.instances = self.cmd_cfg['instances']
+            self.num = len(self.instances)
         self.pool = ThreadPoolExecutor(self.num)
         self.work_dir = self.cmd_cfg['work_dir']
         self.pattern = self.cmd_cfg['pattern']
@@ -52,9 +61,21 @@ class Handler(object):
         self._lock.acquire()
         futures = []
         for i in range(self.num):
-            instance = self.instances[i]
-            port = instance['port']
-            cmd = self.pattern.format(*instance['args'])
+            if self.template_mode:
+                init = copy.deepcopy(self.instance_init)
+                for k, v in init.items():
+                    init[k] = v + i
+                template = copy.deepcopy(self.instance_template)
+                for idx in range(len(template)):
+                    arg = template[idx]
+                    if arg in init:
+                        template[idx] = init[arg]
+                cmd = self.pattern.format(*template)
+                port = init['PORT']
+            else:
+                instance = self.instances[i]
+                port = instance['port']
+                cmd = self.pattern.format(*instance['args'])
             f = self.pool.submit(start_server, cmd, port, self.work_dir,
                                  self.expect_pattern, self.error_pattern,
                                  self.timeout, self.debug)
@@ -139,7 +160,7 @@ class ServerThread(Thread):
 
         rpc_server = TServer.TThreadPoolServer(processor, transport, tfactory,
                                                pfactory)
-        rpc_server.setNumThreads(100)
+        rpc_server.setNumThreads(NUM_THREAD)
 
         print('Starting the RPC at', self.host, ':', constants.PORT)
         rpc_server.serve()

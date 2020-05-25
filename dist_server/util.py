@@ -65,9 +65,10 @@ def start_server(cmd, port, work_dir, expect_pattern, error_pattern,
         p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
         p.read_nonblocking(size=int(1e10), timeout=5)
         # Make sure enter the working directory
-        p.sendline(f'cd {work_dir}')
-        p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
-        p.read_nonblocking(size=int(1e10), timeout=5)
+        if work_dir:
+            p.sendline(f'cd {work_dir}')
+            p.expect(['#', '$', pexpect.TIMEOUT], timeout=1)
+            p.read_nonblocking(size=int(1e10), timeout=5)
         p.sendline(cmd)
         index = p.expect([*expect_pattern, *error_pattern, pexpect.TIMEOUT],
                          timeout=timeout)
